@@ -60,22 +60,21 @@ namespace IMAP_Client
 
                 SendMessageAsync(command);
 
-                await ReadMessageAsync();
-      
-                foreach (var res in responses)
-                {
-                    if (res.Split(' ')[0] == $"A{commandNum}")
-                    {
+                var response = await ReadMessageAsync();
 
-                    }
+                if (response.Split(' ')[0] == $"A{commandNum}" && response.Split(' ')[1] == "OK")
+                {
+                    Console.WriteLine("Выполнен вход");
+                        return true;
                 }
-                
+
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Что-то пошло не так: {e.Message}");
             }
 
+            Console.WriteLine("Неверный логин/пароль");
             return false;
         }
 
@@ -112,7 +111,7 @@ namespace IMAP_Client
         }
 
 
-        public async Task ReadMessageAsync()
+        public async Task<string> ReadMessageAsync()
         {
             string? response = null;
 
@@ -127,11 +126,6 @@ namespace IMAP_Client
                     response += Encoding.UTF8.GetString(data, 0, bytes);
                 }
                 while (data[^1] != 0);
-
-                foreach (var res in response.Split("\r\n"))
-                {
-                    responses.Add(res.Split(' ')[0], res.Split(' '));
-                }
 
             }
             catch (Exception ex)
