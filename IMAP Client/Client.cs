@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Channels;
 
 namespace IMAP_Client
 {
@@ -10,7 +11,7 @@ namespace IMAP_Client
         private IPEndPoint ServerEndPoint { get; }
         private NetworkStream Stream { get; set; }
         private string oldMessagePart = "";
-        private Dictionary<string, List<string>> responses;
+        //private Dictionary<string, List<string>> responses;
 
         private static int commandNumber = 0;
 
@@ -36,9 +37,6 @@ namespace IMAP_Client
                         return true;
                     }
                 }
-
-
-
             }
             catch (SocketException ex)
             {
@@ -82,6 +80,36 @@ namespace IMAP_Client
             }
 
             Console.WriteLine("Неверный логин/пароль");
+            return false;
+        }
+
+        public async Task<bool> Logout()
+        {
+            try
+            {
+                var commandNum = commandNumber;
+                commandNumber++;
+                var command = $"A{commandNum} LOGOUT";
+
+                await SendMessageAsync(command);
+
+                var response = await ReadMessageAsync(commandNum);
+
+                foreach (var res in response)
+                {
+                    if (res.Split(' ')[0] == $"A{commandNum}" && res.Split(' ')[1] == "OK")
+                    {
+                        Console.WriteLine("Выполнен выход");
+                        CLoseConnection();
+                        return true;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Что-то пошло не так: {e.Message}");
+            }
+
             return false;
         }
 
@@ -229,6 +257,7 @@ namespace IMAP_Client
                     Console.WriteLine($"Папка {res.Split(' ')[3]}");
                 }
 
+                Console.WriteLine("Не удалось получить папки");
 
             }
             catch (Exception e)
@@ -258,6 +287,8 @@ namespace IMAP_Client
 
                     Console.WriteLine($"{res.Split(' ', 2)[1]}");
                 }
+
+                Console.WriteLine("Не удалось выбрать папку");
             }
             catch (Exception e)
             {

@@ -9,6 +9,6 @@ await client.ConnectServerAsync();
 await client.Login("qqqqq", "1568452");
 await client.List("INBOX");
 await client.Select("INBOX");
-
+await client.Logout();
 
 
