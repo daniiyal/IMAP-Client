@@ -26,6 +26,7 @@ foreach(var k in mail)
 {
     Console.WriteLine($"{k.Key}: {k.Value}");
 }
+await client.Close();
 await client.Logout();
 
 

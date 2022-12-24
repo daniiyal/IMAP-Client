@@ -10,7 +10,7 @@ namespace IMAP_Client
         private IPEndPoint ServerEndPoint { get; }
         private NetworkStream Stream { get; set; }
         private string oldMessagePart = "";
-        //private Dictionary<string, List<string>> responses;
+  
 
         private static int commandNumber = 0;
 
@@ -182,6 +182,40 @@ namespace IMAP_Client
             }
 
             return result;
+        }
+
+        public async Task Close()
+        {
+            try
+            {
+                var commandNum = commandNumber;
+                commandNumber++;
+                var command = $"A{commandNum} CLOSE";
+
+                await SendMessageAsync(command);
+
+                var response = await ReadMessageAsync(commandNum);
+
+                foreach (var res in response)
+                {
+                    if (res.Split(' ')[0] == $"A{commandNum}" && res.Split(' ')[1] == "OK")
+                    {
+                        Console.WriteLine("Папка закрыта");
+                        return;
+                    }
+                    if (res.Split(' ')[0] == $"A{commandNum}" && res.Split(' ')[1] == "NO")
+                    {
+                        Console.WriteLine("Не удалось закрыть папку");
+                        return;
+                    }
+
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Не удалось закрыть папку");
+                Console.WriteLine($"Что-то пошло не так: {e.Message}");
+            }
         }
 
         public async Task<List<string>> ReadMessageAsync(int commandNum)
