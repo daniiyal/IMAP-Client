@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Channels;
 
 namespace IMAP_Client
 {
@@ -59,7 +58,7 @@ namespace IMAP_Client
             {
                 var commandNum = commandNumber;
                 commandNumber++;
-                var command = $"A{commandNum} LOGIN {name} {CreateMD5(password)}";
+                var command = $"A{commandNum} LOGIN {name} {password}";
 
                 await SendMessageAsync(command);
 
@@ -232,10 +231,12 @@ namespace IMAP_Client
             client.Close();
         }
 
-        public async Task List(string box)
+        public async Task<HashSet<string>> List(string box)
         {
             try
             {
+                var boxList = new HashSet<string>();
+
                 Console.WriteLine($"LIST {box}");
                 var commandNum = commandNumber;
                 var command = $"A{commandNum} LIST {box}";
@@ -251,20 +252,34 @@ namespace IMAP_Client
                     if (res.Split(' ')[0] == $"A{commandNum}" && res.Split(' ')[1] == "OK")
                     {
                         Console.WriteLine("Папки получены");
-                        return;
+                        return boxList;
                     }
 
-                    Console.WriteLine($"Папка {res.Split(' ')[3]}");
+                    if (res.Split(' ')[4].Contains('.'))
+                    {
+                        foreach (var re in res.Split(' ')[4].Split('.'))
+                        {
+                            boxList.Add(re.Trim('\"'));
+                        }
+                    }
+                    else
+                    {
+                        boxList.Add(res.Split(' ')[4].Trim('\"'));
+                    }
+
+                   
                 }
 
                 Console.WriteLine("Не удалось получить папки");
-
+                return null;
             }
             catch (Exception e)
             {
                 Console.WriteLine($"Что-то пошло не так: {e.Message}");
+                return null;
             }
         }
+
         public async Task Select(string box)
         {
             try
@@ -295,5 +310,97 @@ namespace IMAP_Client
                 Console.WriteLine($"Что-то пошло не так: {e.Message}");
             }
         }
+
+
+        public async Task<Dictionary<string, string>> Fetch(string UID, string whatFetch)
+        {
+            try
+            {
+                var commandNum = commandNumber;
+                Console.WriteLine($"FETCH {UID} {whatFetch}");
+                var command = $"A{commandNum} FETCH {UID} {whatFetch}";
+                commandNumber++;
+                await SendMessageAsync(command);
+
+                var mailDict = new Dictionary<string, string>();
+
+                var response = await ReadMessageAsync(commandNum);
+
+                if (whatFetch == "ALL")
+                {
+                    foreach (var res in response)
+                    {
+                        Console.WriteLine($"{res}");
+                    }
+                }
+
+                if(whatFetch == "BODY[]")
+                {
+
+                    foreach (var res in response)
+                    {
+                        if (res.Split(' ')[0] == $"A{commandNum}" && res.Split(' ')[1] == "OK")
+                        {
+                            Console.WriteLine(res);
+                            return mailDict;
+                        }
+
+                        mailDict[res.Split(':')[0]] = res.Split(':')[1];
+                    }
+                }
+                
+                return mailDict;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Не удалось получить письмо");
+                Console.WriteLine(e);
+
+            }
+
+            return null;
+        }
+
+        public async Task<List<uint>> SearchAll()
+        {
+            var uidList = new List<uint>();
+            try
+            {
+                var commandNum = commandNumber;
+               
+                Console.WriteLine("FETCH ALL");
+                var command = $"A{commandNum} UID SEARCH ALL";
+                commandNumber++;
+                await SendMessageAsync(command);
+
+                var response = await ReadMessageAsync(commandNum);
+
+                foreach (var res in response)
+                {
+                    if (res.Split(' ')[0] == $"A{commandNum}" && res.Split(' ')[1] == "OK")
+                    {
+                        Console.WriteLine($"{res.Split(' ')[1]}");
+                        return uidList;
+                    }
+
+                    uint uid;
+                    if (uint.TryParse(res.Split(' ')[1], out uid))
+                    {
+                        uidList.Add(uid);
+                    }
+                   
+                }
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+
+            return uidList;
+        }
+
+
+
     }
 }
